@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weather App - Home</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <h1>Weather App</h1>
+
+    <form>
+      <input type="text" name="location" placeholder="Location..." />
+    </form>
+
+    <div>
+      <div class="error-data"></div>
+      <div class="weather-data"></div>
+    </div>
+  </body>
+
+  <script>
+    const weatherDataDiv = document.querySelector(".weather-data");
+    const errorDataDiv = document.querySelector(".error-data");
+
+    const form = document.querySelector("form");
+    console.log(form);
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const location = form.location.value;
+      console.log(location);
+      fetch(`/weather?location=${location}`)
+        .then((response) => {
+          response
+            .json()
+            .then((data) => {
+              if (data.error) {
+                return (errorDataDiv.textContent = data.error);
+              }
+              const { temperature, humidity, description, address } = data;
+              weatherDataDiv.textContent = `${description}. The temperature in ${address} is ${temperature}F and humidity is ${humidity}`;
+            })
+            .catch((error) => {
+              console.log("Error Occured");
+            });
+        })
+        .catch((error) => {});
+    });
+  </script>
+</html>
