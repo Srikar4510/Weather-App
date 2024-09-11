@@ -8,15 +8,17 @@
     <link rel="stylesheet" href="/css/styles.css" />
   </head>
   <body>
-    <h1>Weather App</h1>
+    <div class="container">
+      <h1>Weather App</h1>
 
-    <form>
-      <input type="text" name="location" placeholder="Location..." />
-    </form>
+      <form>
+        <input type="text" name="location" placeholder="Location..." />
+      </form>
 
-    <div>
-      <div class="error-data"></div>
-      <div class="weather-data"></div>
+      <div>
+        <div class="error-data"></div>
+        <div class="weather-data"></div>
+      </div>
     </div>
   </body>
 
@@ -25,13 +27,11 @@
     const errorDataDiv = document.querySelector(".error-data");
 
     const form = document.querySelector("form");
-    console.log(form);
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       weatherDataDiv.textContent = "Loading...";
       errorDataDiv.textContent = "";
       const location = form.location.value;
-      console.log(location);
       fetch(`/weather?location=${location}`)
         .then((response) => {
           response
@@ -39,22 +39,19 @@
             .then((data) => {
               if (data.error) {
                 weatherDataDiv.textContent = "";
-                return errorDataDiv.textContent = data.error;
+                return (errorDataDiv.textContent = data.error);
               }
               const { temperature, humidity, description, address } = data;
               weatherDataDiv.textContent = `${description}. The temperature in ${address} is ${temperature}F and humidity is ${humidity}`;
             })
             .catch((error) => {
-              console.log("Error Occured");
               weatherDataDiv.textContent = "";
               errorDataDiv.textContent = "Something went wrong";
             });
         })
         .catch((error) => {
-          console.log(error);
-          weatherDataDiv.textContent = ""
+          weatherDataDiv.textContent = "";
           errorDataDiv.textContent = "Something went wrong";
-
         });
     });
   </script>
