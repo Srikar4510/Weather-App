@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: weather-app
+  labels:
+    name: weather-app
+    environment: production
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: weather-app-staging
+  labels:
+    name: weather-app-staging
+    environment: staging 

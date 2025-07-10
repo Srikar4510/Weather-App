@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: weather-app-project
+  namespace: argocd
+  labels:
+    app: weather-app
+spec:
+  description: "Weather App Project"
+  sourceRepos:
+  - 'https://github.com/your-username/your-repo.git'  # Replace with your Git repository
+  destinations:
+  - namespace: weather-app
+    server: https://kubernetes.default.svc
+  - namespace: weather-app-staging
+    server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+  - group: ''
+    kind: Namespace
+  - group: 'networking.k8s.io'
+    kind: Ingress
+  namespaceResourceWhitelist:
+  - group: ''
+    kind: Service
+  - group: ''
+    kind: ConfigMap
+  - group: ''
+    kind: Secret
+  - group: 'apps'
+    kind: Deployment
+  - group: 'apps'
+    kind: ReplicaSet
+  - group: 'autoscaling'
+    kind: HorizontalPodAutoscaler
+  - group: 'networking.k8s.io'
+    kind: Ingress
+  roles:
+  - name: weather-app-admin
+    description: "Admin access to weather app"
+    policies:
+    - p, proj:weather-app-project:weather-app-admin, applications, *, weather-app-project/*, allow
+    - p, proj:weather-app-project:weather-app-admin, applications, *, weather-app-project/*, allow
+    groups:
+    - weather-app:admin
+  - name: weather-app-developer
+    description: "Developer access to weather app"
+    policies:
+    - p, proj:weather-app-project:weather-app-developer, applications, get, weather-app-project/*, allow
+    - p, proj:weather-app-project:weather-app-developer, applications, sync, weather-app-project/*, allow
+    groups:
+    - weather-app:developer 

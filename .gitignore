@@ -1,1 +1,12 @@
 .vercel
+.pre-commit-config.yaml
+trufflehog/
+
+# Dependencies
+node_modules/
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local

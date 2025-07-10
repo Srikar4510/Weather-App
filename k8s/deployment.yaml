@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-app
+  labels:
+    app: weather-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: weather-app
+  template:
+    metadata:
+      labels:
+        app: weather-app
+    spec:
+      containers:
+      - name: weather-app
+        image: docker.io/srikar1924/weather-app:latest
+        ports:
+        - containerPort: 4000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "4000"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 4000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 4000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      restartPolicy: Always 
