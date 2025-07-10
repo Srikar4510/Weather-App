@@ -1,5 +1,36 @@
 pipeline {
-    agent any
+    agent {
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: node
+    image: node:18-alpine
+    command:
+    - cat
+    tty: true
+  - name: docker
+    image: docker:latest
+    command:
+    - cat
+    tty: true
+    volumeMounts:
+    - mountPath: /var/run/docker.sock
+      name: docker-sock
+  - name: kubectl
+    image: bitnami/kubectl:latest
+    command:
+    - cat
+    tty: true
+  volumes:
+  - name: docker-sock
+    hostPath:
+      path: /var/run/docker.sock
+"""
+        }
+    }
     
     environment {
         DOCKER_IMAGE = 'weather-app'
@@ -18,27 +49,33 @@ pipeline {
         
         stage('Install Dependencies') {
             steps {
-                dir('weather-app') {
-                    sh 'npm install'
+                container('node') {
+                    dir('weather-app') {
+                        sh 'npm install'
+                    }
                 }
             }
         }
         
         stage('Run Tests') {
             steps {
-                dir('weather-app') {
-                    // Add actual test command when tests are available
-                    sh 'npm test || echo "No tests defined yet"'
+                container('node') {
+                    dir('weather-app') {
+                        // Add actual test command when tests are available
+                        sh 'npm test || echo "No tests defined yet"'
+                    }
                 }
             }
         }
         
         stage('Build Docker Image') {
             steps {
-                dir('weather-app') {
-                    script {
-                        docker.build("${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:${DOCKER_TAG}")
-                        docker.build("${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:latest")
+                container('docker') {
+                    dir('weather-app') {
+                        sh """
+                            docker build -t ${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:${DOCKER_TAG} .
+                            docker build -t ${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:latest .
+                        """
                     }
                 }
             }
@@ -46,44 +83,47 @@ pipeline {
         
         stage('Push to Registry') {
             steps {
-                script {
-                    docker.withRegistry("https://${DOCKER_REGISTRY}", DOCKER_CREDENTIALS) {
-                        docker.image("${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:${DOCKER_TAG}").push()
-                        docker.image("${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:latest").push()
-                    }
-                }
-            }
-        }
-        
-        stage('Update Kubernetes Manifests') {
-            steps {
-                dir('weather-app') {
-                    script {
-                        // Update the image tag in the deployment manifest
+                container('docker') {
+                    withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS, passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
                         sh """
-                            sed -i 's|image: .*|image: ${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:${DOCKER_TAG}|' k8s/deployment.yaml
-                            
-                            # Commit and push the changes to trigger ArgoCD
-                            git config user.email "jenkins@example.com"
-                            git config user.name "Jenkins"
-                            git add k8s/deployment.yaml
-                            git commit -m "Update image tag to ${DOCKER_TAG}" || echo "No changes to commit"
-                            git push origin main || echo "Failed to push changes"
+                            echo \$DOCKER_PASSWORD | docker login ${DOCKER_REGISTRY} -u \$DOCKER_USERNAME --password-stdin
+                            docker push ${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:${DOCKER_TAG}
+                            docker push ${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:latest
                         """
                     }
                 }
             }
         }
         
+        // stage('Update Kubernetes Manifests') {
+        //     steps {
+        //         dir('weather-app') {
+        //             script {
+        //                 // Update the image tag in the deployment manifest
+        //                 sh """
+        //                     sed -i 's|image: .*|image: ${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:${DOCKER_TAG}|' k8s/deployment.yaml
+        //                     
+        //                     # Commit and push the changes to trigger ArgoCD
+        //                     git config user.email "jenkins@example.com"
+        //                     git config user.name "Jenkins"
+        //                     git add k8s/deployment.yaml
+        //                     git commit -m "Update image tag to ${DOCKER_TAG}" || echo "No changes to commit"
+        //                     git push origin main || echo "Failed to push changes"
+        //                 """
+        //             }
+        //         }
+        //     }
+        // }
+        
         stage('Deploy to Staging') {
             steps {
-                script {
+                container('kubectl') {
                     // Optional: Direct deployment to staging environment
                     withCredentials([kubeconfigFile(credentialsId: KUBECONFIG_CREDENTIALS, variable: 'KUBECONFIG')]) {
                         sh """
-                            kubectl apply -f weather-app/k8s/ -n staging
-                            kubectl set image deployment/weather-app weather-app=${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:${DOCKER_TAG} -n staging
-                            kubectl rollout status deployment/weather-app -n staging
+                            kubectl apply -f weather-app/k8s/ -n weather-app-staging
+                            kubectl set image deployment/weather-app weather-app=${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:${DOCKER_TAG} -n weather-app-staging
+                            kubectl rollout status deployment/weather-app -n weather-app-staging
                         """
                     }
                 }
@@ -94,10 +134,12 @@ pipeline {
     post {
         always {
             // Clean up Docker images
-            sh """
-                docker rmi ${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:${DOCKER_TAG} || true
-                docker rmi ${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:latest || true
-            """
+            container('docker') {
+                sh """
+                    docker rmi ${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:${DOCKER_TAG} || true
+                    docker rmi ${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:latest || true
+                """
+            }
         }
         success {
             echo 'Pipeline succeeded!'
