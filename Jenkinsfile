@@ -129,17 +129,22 @@ spec:
                 }
             }
         }
+        
+        stage('Cleanup') {
+            steps {
+                container('docker') {
+                    sh """
+                        docker rmi ${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:${DOCKER_TAG} || true
+                        docker rmi ${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:latest || true
+                    """
+                }
+            }
+        }
     }
     
     post {
         always {
-            // Clean up Docker images
-            container('docker') {
-                sh """
-                    docker rmi ${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:${DOCKER_TAG} || true
-                    docker rmi ${DOCKER_REGISTRY}/srikar1924/${DOCKER_IMAGE}:latest || true
-                """
-            }
+            echo 'Pipeline execution completed'
         }
         success {
             echo 'Pipeline succeeded!'
