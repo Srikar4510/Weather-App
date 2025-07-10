@@ -10,7 +10,7 @@ pipeline {
         DOCKER_TAG = "${BUILD_NUMBER}"
         DOCKER_REGISTRY = 'docker.io'
         DOCKER_CREDENTIALS = 'docker-hub-creds'
-        KUBECONFIG_CREDENTIALS = 'kubeconfig-embedded-creds'
+        KUBECONFIG_CREDENTIALS = 'kubeconfig-internal-creds'
     }
     
     stages {
